@@ -2,7 +2,7 @@
 const route = useRoute()
 
 const config = useRuntimeConfig()
-const { pending, data:flight, refresh } = await useLazyFetch(`http://localhost:5000/get_flight?id=${route.params.code}`)
+const { pending, data:flight, refresh } = await useLazyFetch(`${config.public.apiBase}/get_flight?id=${route.params.code}`)
 
 setTimeout(() => {
   refresh()
