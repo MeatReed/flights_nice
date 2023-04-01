@@ -11,9 +11,4 @@ export default defineNuxtConfig({
       'vuetify',
     ],
   },
-  runtimeConfig: {
-    public: {
-      apiBase: process.env.API_BASE_URL || "http://localhost:5000",
-    }
-  }
 })

@@ -1,24 +1,40 @@
 <script setup>
 const config = useRuntimeConfig()
-let previousPage = -1
-let page = 1
+const autocomplete = ref()
+let previousPage = ref(0)
+let page = ref(1)
+const disabledPreviousFlights = ref(false)
+const disabledNextFlights = ref(false)
+const searchFlights = ref()
 
-console.log(config.public)
-const { pending, data:flights } = await useLazyFetch(`${config.public.apiBase}/get_arrivals_flights_t1?page=${page}`)
+const { pending, data:flights } = await useLazyFetch(`/api/get_arrivals_flights?page=${page.value}&terminal=1`)
 
 async function fetchPrevious() {
   pending.value = true
-  let { data:previousFlights } = await useLazyFetch(`${config.public.apiBase}/get_arrivals_flights_t1?page=${previousPage}`)
-  previousPage = previousPage - 1
-  flights.value = ref(combineFlightsByDate(flights.value, previousFlights.value)).value
+  let { data:previousFlights } = await useLazyFetch(`/api/get_arrivals_flights?page=${previousPage.value}&terminal=1`)
+  if (previousFlights.value.page.current == previousFlights.value.page.total) {
+    disabledPreviousFlights.value = true
+  }
+  previousPage.value = previousPage.value - 1
+  flights.value.data = ref(combineFlightsByDate(flights.value, previousFlights.value)).value
   pending.value = false
 }
 
+async function fetchNext() {
+  pending.value = true
+  page.value = page.value + 1
+  let { data:nextFlights } = await useLazyFetch(`/api/get_arrivals_flights?page=${page.value}`)
+  if (nextFlights.value.page.current == nextFlights.value.page.total) {
+    disabledNextFlights.value = true
+  }
+  flights.value.data = ref(combineFlightsByDate(flights.value, nextFlights.value)).value
+  pending.value = false
+}
 
 function combineFlightsByDate(flightsByDate1, flightsByDate2) {
   
-  const flightsByDate1Object = JSON.parse(JSON.stringify(flightsByDate1))
-  const flightsByDate2Object = JSON.parse(JSON.stringify(flightsByDate2))
+  const flightsByDate1Object = JSON.parse(JSON.stringify(flightsByDate1)).data
+  const flightsByDate2Object = JSON.parse(JSON.stringify(flightsByDate2)).data
 
   const combinedFlights = {};
 
@@ -39,47 +55,74 @@ function combineFlightsByDate(flightsByDate1, flightsByDate2) {
   return combinedFlights;
 }
 
+function groupEvents(eventsByDate) {
+  const events = [];
+
+  for (let key in eventsByDate) {
+    eventsByDate[key].forEach(event => {
+      events.push(event);
+    });
+  }
+
+  return events;
+}
+
 const refresh = () => refreshNuxtData()
 
-setTimeout(() => {
+const intervalDuration = 180000
+const timeLeft = ref(intervalDuration)
+
+const selectedSearch = (async (item) => {
+  const { data:flightsSearch } = await useLazyFetch(`/api/search_flight?search=${item}`)
+
+  searchFlights.value = flightsSearch.value
+})
+
+const selectFlight = ((item) => {
+  console.log(item)
+})
+
+setInterval(() => {
+  timeLeft.value = intervalDuration;
+  disabledPreviousFlights.value = false
+  disabledNextFlights.value = true
   refresh()
-}, "300000")
+}, intervalDuration)
+
+const intervalTimer = setInterval(() => {
+    timeLeft.value = timeLeft.value - 1000;
+    if (timeLeft.value <= 0) {
+      clearInterval(intervalTimer);
+    }
+  }, 1000);
 </script>
 
 <template>
   <v-container>
     <v-row>
       <v-col>
-        <v-btn block nuxt to="/departures">
-          Départ
-        </v-btn>
+        <v-btn block @click="refresh()">Rafraîchir ({{ Math.floor(timeLeft / 1000) }}/180 secondes)</v-btn>
       </v-col>
       <v-col>
-        <v-btn block nuxt to="/arrivals">
-          Arrivée
-        </v-btn>
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-col>
-        <v-btn block nuxt to="/arrivals/t1">
-          T1
-        </v-btn>
-      </v-col>
-      <v-col>
-        <v-btn block nuxt to="/arrivals/t2">
-          T2
-        </v-btn>
+        <v-autocomplete
+          v-if="!pending"
+          v-model="autocomplete"
+          label="Chercher un vol"
+          variant="solo"
+          dense
+          @update:search="selectedSearch"
+          @update:model-value="selectFlight"
+          item-title="id"
+          return-object
+          :items="searchFlights?.results"
+        ></v-autocomplete>
       </v-col>
     </v-row>
     <v-row>
       <v-col>
-        <v-btn block @click="refresh()">Refresh</v-btn>
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-col>
-        <v-text-field></v-text-field>
+        <v-btn :disabled="pending || disabledPreviousFlights" block @click="fetchPrevious()">
+          Afficher des anciens vols
+        </v-btn>
       </v-col>
     </v-row>
     <v-row v-if="pending">
@@ -87,15 +130,8 @@ setTimeout(() => {
         <v-progress-circular indeterminate :size="128"></v-progress-circular>
       </v-col>
     </v-row>
-    <v-row>
-      <v-col>
-        <v-btn :disabled="pending" block @click="fetchPrevious()">
-          Previous
-        </v-btn>
-      </v-col>
-    </v-row>
-    <div v-if="!pending">
-      <v-row v-for="(flights_date, name) in flights">
+    <div v-if="flights?.data">
+      <v-row v-for="(flights_date, name) in flights.data">
         <v-col>
           <v-card class="text-center" color="grey">
             {{ new Date(name * 1000).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }) }}
@@ -134,7 +170,7 @@ setTimeout(() => {
                     {{ flight.flight.identification.number.default }} ({{ flight.flight.aircraft.model.code }} | {{ flight.flight.aircraft.model.text }})
                   </v-card-subtitle>
                   <v-card-actions>
-                    <v-btn v-if="flight.flight.identification.id" variant="tonal" nuxt :to="`/arrivals/${flight.flight.identification.id}`">Plus d'information</v-btn>
+                    <v-btn v-if="flight.flight.identification.id" variant="tonal" nuxt :to="`/flight/${flight.flight.identification.id}`">Plus d'information</v-btn>
                   </v-card-actions>
                 </div>
               </div>
@@ -144,6 +180,13 @@ setTimeout(() => {
         </v-col>
       </v-row>
     </div>
+    <v-row>
+      <v-col>
+        <v-btn :disabled="pending || disabledNextFlights" block @click="fetchNext()">
+          Afficher des nouveaux vols
+        </v-btn>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
