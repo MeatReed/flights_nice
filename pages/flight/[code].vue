@@ -1,6 +1,4 @@
 <script setup>
-import { defineComponent } from 'vue'
-import { GoogleMap, Marker } from 'vue3-google-map'
 const route = useRoute()
 
 const { pending, data:flight, refresh } = await useLazyFetch(`/api/get_flight_by_code?code=${route.params.code}`)

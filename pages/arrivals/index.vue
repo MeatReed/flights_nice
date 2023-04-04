@@ -1,5 +1,4 @@
 <script setup>
-const config = useRuntimeConfig()
 const autocomplete = ref()
 let previousPage = ref(0)
 let nextPage = ref(1)
