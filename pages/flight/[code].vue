@@ -1,7 +1,10 @@
 <script setup>
+import { defineComponent } from 'vue'
+import { GoogleMap, Marker } from 'vue3-google-map'
 const route = useRoute()
 
-const { pending, data:flight, refresh } = await useLazyFetch(`/api/get_flight?id=${route.params.code}`)
+const { pending, data:flight, refresh } = await useLazyFetch(`/api/get_flight_by_code?code=${route.params.code}`)
+
 
 const intervalDuration = 180000
 const timeLeft = ref(intervalDuration)
@@ -56,7 +59,7 @@ const intervalTimer = setInterval(() => {
         </v-card>
         <v-progress-linear :color="flight.status.generic.status.color" model-value="100" :height="7"></v-progress-linear>
       </v-col>
-      <v-col>
+      <v-col v-if="flight.aircraft?.images">
         <v-card>
           <v-carousel>
             <v-carousel-item

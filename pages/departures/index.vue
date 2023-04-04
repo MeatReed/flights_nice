@@ -78,9 +78,16 @@ const selectedSearch = (async (item) => {
   searchFlights.value = flightsSearch.value
 })
 
-const selectFlight = ((item) => {
-  console.log(item)
+const selectFlight = (async (item) => {
+  await navigateTo(`/flight/${item.id}`)
 })
+
+const intervalTimer = setInterval(() => {
+  timeLeft.value = timeLeft.value - 1000;
+  if (timeLeft.value <= 0) {
+    timeLeft.value = intervalDuration;
+  }
+}, 1000);
 
 setInterval(() => {
   timeLeft.value = intervalDuration;
@@ -88,13 +95,6 @@ setInterval(() => {
   disabledNextFlights.value = true
   refresh()
 }, intervalDuration)
-
-const intervalTimer = setInterval(() => {
-    timeLeft.value = timeLeft.value - 1000;
-    if (timeLeft.value <= 0) {
-      clearInterval(intervalTimer);
-    }
-  }, 1000);
 </script>
 
 <template>

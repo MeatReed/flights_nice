@@ -67,20 +67,27 @@ function groupEvents(eventsByDate) {
   return events;
 }
 
+const refresh = () => refreshNuxtData()
+
+const intervalDuration = 180000
+const timeLeft = ref(intervalDuration)
+
 const selectedSearch = (async (item) => {
   const { data:flightsSearch } = await useLazyFetch(`/api/search_flight?search=${item}`)
 
   searchFlights.value = flightsSearch.value
 })
 
-const selectFlight = ((item) => {
-  console.log(item)
+const selectFlight = (async (item) => {
+  await navigateTo(`/flight/${item.id}`)
 })
 
-const refresh = () => refreshNuxtData()
-
-const intervalDuration = 180000
-const timeLeft = ref(intervalDuration)
+const intervalTimer = setInterval(() => {
+  timeLeft.value = timeLeft.value - 1000;
+  if (timeLeft.value <= 0) {
+    timeLeft.value = intervalDuration;
+  }
+}, 1000);
 
 setInterval(() => {
   timeLeft.value = intervalDuration;
@@ -88,13 +95,6 @@ setInterval(() => {
   disabledNextFlights.value = true
   refresh()
 }, intervalDuration)
-
-const intervalTimer = setInterval(() => {
-    timeLeft.value = timeLeft.value - 1000;
-    if (timeLeft.value <= 0) {
-      clearInterval(intervalTimer);
-    }
-  }, 1000);
 </script>
 
 <template>

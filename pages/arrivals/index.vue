@@ -2,12 +2,14 @@
 const config = useRuntimeConfig()
 const autocomplete = ref()
 let previousPage = ref(0)
+let nextPage = ref(1)
 let page = ref(1)
 const disabledPreviousFlights = ref(false)
 const disabledNextFlights = ref(false)
 const searchFlights = ref()
+const limit = ref(100)
 
-const { pending, data:flights } = await useLazyFetch(`/api/get_arrivals_flights?page=${page.value}`)
+const { pending, data:flights } = await useLazyFetch(`/api/get_arrivals_flights?page=${page.value}&limit=${limit.value}`)
 
 async function fetchPrevious() {
   pending.value = true
@@ -16,14 +18,17 @@ async function fetchPrevious() {
     disabledPreviousFlights.value = true
   }
   previousPage.value = previousPage.value - 1
+  page.value = page.value - 1
+  limit.value = limit.value + 100
   flights.value.data = ref(combineFlightsByDate(flights.value, previousFlights.value)).value
   pending.value = false
 }
 
 async function fetchNext() {
   pending.value = true
-  page.value = page.value + 1
-  let { data:nextFlights } = await useLazyFetch(`/api/get_arrivals_flights?page=${page.value}`)
+  nextPage.value = nextPage.value + 1
+  limit.value = limit.value + 100
+  let { data:nextFlights } = await useLazyFetch(`/api/get_arrivals_flights?page=${nextPage.value}`)
   if (nextFlights.value.page.current == nextFlights.value.page.total) {
     disabledNextFlights.value = true
   }
@@ -78,9 +83,16 @@ const selectedSearch = (async (item) => {
   searchFlights.value = flightsSearch.value
 })
 
-const selectFlight = ((item) => {
-  console.log(item)
+const selectFlight = (async (item) => {
+  await navigateTo(`/flight/${item.id}`)
 })
+
+const intervalTimer = setInterval(() => {
+  timeLeft.value = timeLeft.value - 1000;
+  if (timeLeft.value <= 0) {
+    timeLeft.value = intervalDuration;
+  }
+}, 1000);
 
 setInterval(() => {
   timeLeft.value = intervalDuration;
@@ -88,13 +100,6 @@ setInterval(() => {
   disabledNextFlights.value = true
   refresh()
 }, intervalDuration)
-
-const intervalTimer = setInterval(() => {
-    timeLeft.value = timeLeft.value - 1000;
-    if (timeLeft.value <= 0) {
-      clearInterval(intervalTimer);
-    }
-  }, 1000);
 </script>
 
 <template>
@@ -167,7 +172,7 @@ const intervalTimer = setInterval(() => {
                   </v-card-title>
 
                   <v-card-subtitle>
-                    {{ flight.flight.identification.number.default }} ({{ flight.flight.aircraft.model.code }} | {{ flight.flight.aircraft.model.text }})
+                    {{ flight.flight.identification.number.default }} ({{ flight.flight.aircraft?.model.code }} | {{ flight.flight.aircraft?.model.text }})
                   </v-card-subtitle>
                   <v-card-actions>
                     <v-btn v-if="flight.flight.identification.id" variant="tonal" nuxt :to="`/flight/${flight.flight.identification.id}`">Plus d'information</v-btn>

@@ -22,13 +22,17 @@ export default defineEventHandler(async (event) => {
     query.page = 1
   }
 
+  if (!query.limit) {
+    query.limit = 100
+  }
+
   const date = new Date().getTime()
 
   let flight_list = [];
 
   try {
     const response = await axios.get(
-      `https://api.flightradar24.com/common/v1/airport.json?code=nce&plugin[]=schedule&plugin-setting[schedule][mode]=departures&plugin-setting[schedule][timestamp]=${date / 1000}&page=${query.page}&limit=100&token=`,
+      `https://api.flightradar24.com/common/v1/airport.json?code=nce&plugin[]=schedule&plugin-setting[schedule][mode]=departures&plugin-setting[schedule][timestamp]=${date / 1000}&page=${query.page}&limit=${query.limit}&token=`,
       {
         header: headers
       }
